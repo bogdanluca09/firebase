@@ -1,0 +1,165 @@
+<html>
+
+<head>
+    <title>Authentication Example</title>
+
+    <script src="https://www.gstatic.com/firebasejs/4.1.2/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/4.1.2/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/4.1.2/firebase-database.js"></script>
+    <script src="firebase/init.js"></script>
+
+    <script type="text/javascript">
+      function toggleSignIn() {
+        if (getCurrentUser()) {
+          signOut();
+        } else {
+          signInWithEmailAndPassword();
+        }
+      }
+
+      function signInWithEmailAndPassword() {
+        var email = document.getElementById('email').value;
+        var password = document.getElementById('password').value;
+        if (email.length < 4) {
+          alert('Please enter an email address.');
+          return;
+        }
+        if (password.length < 4) {
+          alert('Please enter a password.');
+          return;
+        }
+
+        firebaseAuth().signInWithEmailAndPassword(email, password).catch(function (error) {
+          var errorCode = error.code;
+          var errorMessage = error.message;
+
+          if (errorCode === 'auth/wrong-password') {
+            alert('Wrong password.');
+          } else {
+            alert(errorMessage);
+          }
+          console.log(error);
+          document.getElementById('quickstart-sign-in').disabled = false;
+        });
+      }
+
+      function signInAnonymously() {
+        firebaseAuth().signInAnonymously().then(function (user) {
+          alert('You have signed in anonymously ' + user.uid);
+        }).catch(function (error) {
+          var errorCode = error.code;
+          var errorMessage = error.message;
+
+          if (errorCode === 'auth/operation-not-allowed') {
+            alert('You must enable Anonymous auth in the Firebase Console.');
+          } else {
+            console.error(error);
+          }
+        });
+      }
+
+      function signOut() {
+        firebaseAuth().signOut();
+      }
+
+      function getCurrentUser() {
+        return firebaseAuth().currentUser;
+      }
+
+      function processUserNewIdToken() {
+        tryGetAndSaveUserIdToken(getCurrentUser());
+      }
+
+      //daca user-ul este logat, atunci asa vei obtine token-ul sau, si il poti folosi ca sa faci request-uri la backend, sau ce vrei tu
+      function tryGetIdToken() {
+        var idToken = localStorage.getItem('idToken');
+        if (!idToken) {
+          var currentUser = getCurrentUser();
+          if (currentUser) {
+            tryGetAndSaveUserIdToken(currentUser);
+          }
+        }
+        console.log('idToken', idToken);
+      }
+
+      function tryGetAndSaveUserIdToken(currentUser) {
+        currentUser.getIdToken().then(function (newIdToken) {
+          localStorage.setItem('idToken', newIdToken);
+        }).catch(function (error) {
+          console.log(`Get IdToken error[ '${error.code}' : '${error.message}' ]`);
+        });
+      }
+
+      function firebaseAuth() {
+        return firebase.auth();
+      }
+
+      function handleUserSignedIn(user) {
+        document.getElementById('sign-in-status').textContent = 'Signed in';
+        document.getElementById('sign-in').textContent = 'Sign out';
+
+        var displayName = user.displayName;
+        var email = user.email;
+        var emailVerified = user.emailVerified;
+        var photoURL = user.photoURL;
+        var isAnonymous = user.isAnonymous;
+        var uid = user.uid;
+        var providerData = user.providerData;
+
+        var acccountDetails;
+        if (isAnonymous) {
+          acccountDetails = 'Anonymous User';
+        } else {
+          acccountDetails = `name: ${displayName}\nemail: ${email}\nemailVerified: ${emailVerified}\nuid: ${uid}`;
+        }
+        document.getElementById('account-details').textContent = acccountDetails;
+
+        localStorage.setItem('user', uid);
+      }
+
+      function handleUserSignOut() {
+        document.getElementById('sign-in-status').textContent = 'Signed out';
+        document.getElementById('sign-in').textContent = 'Sign in';
+        document.getElementById('account-details').textContent = 'null';
+        localStorage.removeItem('user');
+        localStorage.removeItem('idToken');
+      }
+
+      function initApp() {
+        firebaseAuth().onAuthStateChanged(function (user) {
+          if (user) {
+            if (!localStorage.getItem('user')) {
+              handleUserSignedIn(user);
+            }
+            processUserNewIdToken();
+          } else {
+            handleUserSignOut();
+          }
+        });
+
+        document.getElementById('sign-in').addEventListener('click', toggleSignIn, false);
+        document.getElementById('sign-in-anon').addEventListener('click', signInAnonymously, false);
+      }
+
+      window.onload = function () {
+        initApp();
+      };
+    </script>
+
+</head>
+
+<body>
+<input style="display:inline;width:auto;" type="text" id="email" name="email" placeholder="Email..."/>
+<input style="display:inline;width:auto;" type="password" id="password" name="password" placeholder="Password..."/>
+<br/><br/>
+<button id="sign-in" name="signin">Sign In with Email and Password</button>
+<button id="sign-in-anon" name="signinanon">Sign in Anonymously</button>
+<br/><br/>
+<div class="user-details-container">
+    Firebase sign-in status: <span id="sign-in-status">Unknown</span>
+    <div>Firebase auth <code>currentUser</code></div>
+    <pre><code id="account-details">null</code></pre>
+</div>
+</body>
+
+</html>
